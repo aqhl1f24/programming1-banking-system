@@ -6,13 +6,14 @@
 #include <limits.h>
 #include <errno.h>
 #include <ctype.h>
-#ifdef _WIN32
+//for creating directory
+#ifdef _WIN32 
 #include <direct.h>
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
-
+// account information structure
 struct Account
 {
     char acc_number[10];
@@ -24,6 +25,7 @@ struct Account
     char created_at[30];
 };
 
+//count how many accounts are in the index file
 int count_acc()
 {
     FILE *index_file = fopen("database/index.txt", "r");
@@ -44,6 +46,7 @@ int count_acc()
     return count;
 }
 
+//check if user input is 1-6 or create, delete, deposit, withdraw, remit, exit
 bool checkinput(char input[])
 {
     const char *valid_inputs[] = {"1", "2", "3", "4", "5", "6", "create", "delete", "deposit", "withdraw", "remit", "exit"};
@@ -63,6 +66,7 @@ bool checkinput(char input[])
     return false;
 }
 
+//only allow letters and spaces in name
 bool checkname(char *name)
 {
     if (strlen(name) == 0)
@@ -80,6 +84,7 @@ bool checkname(char *name)
     return true;
 }
 
+//check if pin is numbers only
 bool checkpin(char *pin)
 {
     for (int i = 0; i < 4; i++)
@@ -92,6 +97,7 @@ bool checkpin(char *pin)
     return true;
 }
 
+//check if id is numbers only
 bool checkid(char *id)
 {
     for (int i = 0; id[i]; i++)
@@ -104,13 +110,14 @@ bool checkid(char *id)
     return true;
 }
 
+//generate unique account number
 char *acc_num()
 {
     static char acc_num[10];
 
     while (true)
     {
-        int digits = 7 + rand() % 3;
+        int digits = 7 + rand() % 3;   // Randomly choose between 7, 8, or 9 digits
         long min = 1;
         long max = 1;
 
@@ -127,7 +134,7 @@ char *acc_num()
         sprintf(filename, "database/%s.txt", acc_num);
 
         FILE *file = fopen(filename, "r");
-        if (file == NULL)
+        if (file == NULL) // if account number file does not exist, account number is unique
         {
             break;
         }
@@ -136,6 +143,7 @@ char *acc_num()
     return acc_num;
 }
 
+//save the account information to each account number file
 bool save_acc(struct Account *acc)
 {
     char filename[100];
@@ -159,6 +167,8 @@ bool save_acc(struct Account *acc)
     return true;
 }
 
+
+//log every actions to transaction.log file
 void log_action(char *action, char *details)
 {
     time_t now = time(NULL);
@@ -168,11 +178,12 @@ void log_action(char *action, char *details)
     FILE *logfile = fopen("database/transaction.log", "a");
     if (logfile != NULL)
     {
-        fprintf(logfile, "%s  %s  %s\n", timestamp, action, details);
+        fprintf(logfile, "%s  %s  %s\n", timestamp, action, details); 
         fclose(logfile);
     }
 }
 
+//load account information from file
 bool load_account(char *acc_number, struct Account *acc)
 {
     char filename[100];
@@ -185,7 +196,7 @@ bool load_account(char *acc_number, struct Account *acc)
     }
 
     char line[200];
-    while (fgets(line, sizeof(line), file))
+    while (fgets(line, sizeof(line), file)) //loop through each line of the account number file and get the information of the account
     {
         if (strncmp(line, "Account Number:", 15) == 0)
         {
@@ -220,6 +231,7 @@ bool load_account(char *acc_number, struct Account *acc)
     return true;
 }
 
+//update index file when account is created or deleted
 void update_index_file(char *acc_num, bool addorremoveindex)
 {
 
@@ -269,6 +281,7 @@ void update_index_file(char *acc_num, bool addorremoveindex)
     }
 }
 
+//check the account can be deleted by verifying last 4 digits of ID and PIN
 bool check_if_acc_deletable(char *acc_num, char *id_last4, char *pin)
 {
     struct Account acc;
@@ -289,7 +302,7 @@ bool check_if_acc_deletable(char *acc_num, char *id_last4, char *pin)
     }
 
     char id_last4_actual[5];
-    strncpy(id_last4_actual, acc.id + id_len - 4, 4);
+    strncpy(id_last4_actual, acc.id + id_len - 4, 4); 
     id_last4_actual[4] = '\0';
 
     if (strcmp(id_last4_actual, id_last4) != 0)
@@ -305,7 +318,7 @@ bool update_balance(char *acc_num, double new_balance)
     char filename[100];
     sprintf(filename, "database/%s.txt", acc_num);
 
-    FILE *file = fopen(filename, "r");
+    FILE *file = fopen(filename, "r"); 
     if (file == NULL)
     {
         return false;
@@ -314,7 +327,7 @@ bool update_balance(char *acc_num, double new_balance)
     char temp_filename[100];
     sprintf(temp_filename, "database/temp_%s.txt", acc_num);
     FILE *temp_file = fopen(temp_filename, "w");
-    if (temp_file == NULL)
+    if (temp_file == NULL) 
     {
         fclose(file);
         return false;
@@ -322,7 +335,7 @@ bool update_balance(char *acc_num, double new_balance)
 
     char line[200];
     bool balance_updated = false;
-    while (fgets(line, sizeof(line), file))
+    while (fgets(line, sizeof(line), file)) //loop through each line of the account file to find "Balance:" and update the balance line with new balance
     {
         if (strncmp(line, "Balance:", 8) == 0)
         {
@@ -349,17 +362,19 @@ bool update_balance(char *acc_num, double new_balance)
     return true;
 }
 
+//allow user to create a new account
 void create_account()
 {
     struct Account new_acc;
 
+    //get user name
     while (true)
     {
         printf("Enter account name: ");
         scanf("%99[^\n]", new_acc.name);
         while ((getchar()) != '\n');
 
-        if (checkname(new_acc.name))
+        if (checkname(new_acc.name)) 
         {
             break;
         }
@@ -369,9 +384,10 @@ void create_account()
         }
     }
 
+    //get user ID
     while (true)
     {
-        printf("Enter account ID: ");
+        printf("Enter account ID: "); 
         scanf("%19s", new_acc.id);
         while ((getchar()) != '\n');
 
@@ -385,6 +401,7 @@ void create_account()
         }
     }
 
+    //get account type
     while (true)
     {
         printf("Select your account type:\n");
@@ -415,6 +432,7 @@ void create_account()
         }
     }
 
+    //get user pin
     while (true)
     {
         char pin_input[10];
@@ -451,11 +469,11 @@ void create_account()
     new_acc.balance = 0.0;
 
     time_t now = time(NULL);
-    strftime(new_acc.created_at, sizeof(new_acc.created_at), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    strftime(new_acc.created_at, sizeof(new_acc.created_at), "%Y-%m-%d %H:%M:%S", localtime(&now)); //get current date and time
 
-    if (save_acc(&new_acc))
+    if (save_acc(&new_acc)) //save account information to file
     {
-        update_index_file(new_acc.acc_number, true);
+        update_index_file(new_acc.acc_number, true); //add account number to index file
         printf("Account created successfully!\n");
         printf("Your account number is: %s\n", new_acc.acc_number);
         printf("Your account type is: %s\n", new_acc.acc_type);
@@ -463,7 +481,7 @@ void create_account()
 
         char log[500];
         sprintf(log, "Account %s created for %s with ID %s", new_acc.acc_number, new_acc.name, new_acc.id);
-        log_action("CREATE ACCOUNT", log);
+        log_action("CREATE ACCOUNT", log); //log account creation 
     }
     else
     {
@@ -471,6 +489,7 @@ void create_account()
     }
 }
 
+//allow user to delete an account
 void delete_account()
 {
     char acc_num[15];
@@ -503,18 +522,18 @@ void delete_account()
     }
     while ((getchar()) != '\n');
 
-    if (check_if_acc_deletable(acc_num, id_last4, pin))
+    if (check_if_acc_deletable(acc_num, id_last4, pin)) //verify if account can be deleted by checking last 4 digits of ID and PIN
     {
         char filename[100];
         sprintf(filename, "database/%s.txt", acc_num);
 
-        if (remove(filename) == 0)
+        if (remove(filename) == 0) 
         {
             printf("Account %s deleted successfully.\n", acc_num);
             update_index_file(acc_num, false);
             char log[500];
             sprintf(log, "Account %s deleted", acc_num);
-            log_action("DELETE ACCOUNT", log);
+            log_action("DELETE ACCOUNT", log); //log account deletion
         }
         else
         {
@@ -527,6 +546,7 @@ void delete_account()
     }
 }
 
+//allow user to deposit funds
 void deposit_funds()
 {
     char acc_num[15];
@@ -551,7 +571,7 @@ void deposit_funds()
     while ((getchar()) != '\n');
 
     struct Account acc;
-    if (load_account(acc_num, &acc))
+    if (load_account(acc_num, &acc)) //load account information from file
     {
         if (strcmp(acc.pin, pin) == 0)
         {
@@ -559,10 +579,12 @@ void deposit_funds()
 
             double amount;
             int check_if_numeric;
-            while (true)
+
+            //get deposit amount from user
+            while (true) 
             {
                 printf("Enter the amount you want to deposit (minimum 0.01 and maximum 50000.00): ");
-                check_if_numeric = scanf("%lf", &amount);
+                check_if_numeric = scanf("%lf", &amount); //check if input is numeric
                 while ((getchar()) != '\n');
     
 
@@ -587,7 +609,7 @@ void deposit_funds()
                 printf("Deposit successful! New balance: RM%.2f\n", acc.balance);
                 char log[500];
                 sprintf(log, "Deposited %.2f to account %s", amount, acc_num);
-                log_action("DEPOSIT FUNDS", log);
+                log_action("DEPOSIT FUNDS", log); //log deposit action
             }
             else
             {
@@ -605,6 +627,7 @@ void deposit_funds()
     }
 }
 
+//allow user to withdraw funds
 void withdrawal()
 {
     char acc_num[15];
@@ -629,14 +652,16 @@ void withdrawal()
 
     struct Account acc;
 
-    if (load_account(acc_num, &acc))
+    if (load_account(acc_num, &acc)) //load account information from file
     {
         if (strcmp(acc.pin, pin) == 0)
         {
-            printf("Current balance: RM%.2f\n", acc.balance);
+            printf("Current balance: RM%.2f\n", acc.balance); 
 
             double amount;
             int check_if_numeric;
+
+            //get withdrawal amount from user
             while (true)
             {
                 printf("Enter the amount you want to withdraw: ");
@@ -661,12 +686,12 @@ void withdrawal()
 
             acc.balance -= amount;
 
-            if (update_balance(acc_num, acc.balance))
+            if (update_balance(acc_num, acc.balance)) //update balance in account file
             {
                 printf("Withdrawal successful! New balance: RM%.2f\n", acc.balance);
                 char log[200];
                 sprintf(log, "Withdraw %.2f from account %s", amount, acc_num);
-                log_action("WITHDRAW FUNDS", log);
+                log_action("WITHDRAW FUNDS", log); //log withdrawal action
             }
             else
             {
@@ -684,6 +709,7 @@ void withdrawal()
     }
 }
 
+//allow user to remit funds to another account
 void remittance()
 {
     char sender_acc_num[15];
@@ -720,16 +746,16 @@ void remittance()
     struct Account sender_acc;
     struct Account receiver_acc;
 
-    if (load_account(sender_acc_num, &sender_acc))
+    if (load_account(sender_acc_num, &sender_acc)) //load sender account information from file
     {
         if (strcmp(sender_acc.pin, pin) == 0)
         {
-            if (strcmp(sender_acc_num, receiver_acc_num) == 0)
+            if (strcmp(sender_acc_num, receiver_acc_num) == 0) //check if sender and receiver account numbers are the same
             {
                 printf("You cannot remit funds to the same account.\n");
                 return;
             }
-            if (load_account(receiver_acc_num, &receiver_acc))
+            if (load_account(receiver_acc_num, &receiver_acc)) //load receiver account information from file
             {
                 double amount;
                 int check_if_numeric;
@@ -757,18 +783,18 @@ void remittance()
                 double fee = 0.00;
                 double final_amount = amount;
 
-                if (strcmp(sender_acc.acc_type, "savings") == 0 && strcmp(receiver_acc.acc_type, "current") == 0)
+                if (strcmp(sender_acc.acc_type, "savings") == 0 && strcmp(receiver_acc.acc_type, "current") == 0) //check if savings to current account
                 {
                     fee = amount * 0.02;
                     final_amount = amount + fee;
                 }
-                else if (strcmp(sender_acc.acc_type, "current") == 0 && strcmp(receiver_acc.acc_type, "savings") == 0)
+                else if (strcmp(sender_acc.acc_type, "current") == 0 && strcmp(receiver_acc.acc_type, "savings") == 0) //check if current to savings account
                 {
                     fee = amount * 0.03;
                     final_amount = amount + fee;
                 }
 
-                if (final_amount > sender_acc.balance)
+                if (final_amount > sender_acc.balance) //check if sender has sufficient funds including fees
                 {
                     printf("Insufficient funds to complete the remittance including fees (RM%.2f). Your current balance is RM%.2f\n", final_amount, sender_acc.balance);
                     return;
@@ -776,12 +802,12 @@ void remittance()
                 sender_acc.balance -= final_amount;
                 receiver_acc.balance += amount;
 
-                if (update_balance(sender_acc_num, sender_acc.balance) && update_balance(receiver_acc_num, receiver_acc.balance))
+                if (update_balance(sender_acc_num, sender_acc.balance) && update_balance(receiver_acc_num, receiver_acc.balance)) //update balances in both accounts
                 {
                     printf("Funds successfully remitted from %s to %s. Amount: RM%.2f, Fee: RM%.2f\n", sender_acc_num, receiver_acc_num, amount, fee);
                     char log[500];
                     sprintf(log, "Remitted RM%.2f from account %s to account %s with fee RM%.2f", amount, sender_acc_num, receiver_acc_num, fee);
-                    log_action("REMIT FUNDS", log);
+                    log_action("REMIT FUNDS", log); //log remittance action
                 }
                 else
                 {
@@ -807,12 +833,14 @@ void remittance()
 
 int main()
 {
+    //create database directory if not exist
     #ifdef _WIN32
         _mkdir("database");
     #else
         mkdir("database", 0755);
     #endif
 
+    //create index.txt and transaction.log files if not exist
     FILE *fp;
     fp = fopen("database/index.txt", "a");
     if (fp!= NULL)
@@ -826,17 +854,18 @@ int main()
         fclose(fp);
     }
 
-    srand(time(NULL));
+    srand(time(NULL)); //seed random number generator
 
     time_t now = time(NULL);
     printf("Welcome to UOSM Banking System\n");
-    printf("Current date and time: %s", ctime(&now));
+    printf("Current date and time: %s", ctime(&now)); //display current date and time
 
     int acc_count = count_acc();
-    printf("Total number of bank accounts: %d\n", acc_count);
+    printf("Total number of bank accounts: %d\n", acc_count); //display total number of accounts
 
     char input[30];
 
+    //main menu 
     while (true)
     {
         printf("1. Create New Bank Account\n");
@@ -850,7 +879,7 @@ int main()
         scanf("%19s", input);
         while ((getchar()) != '\n');
 
-        if (!checkinput(input))
+        if (!checkinput(input)) //allow user to input either number or command
         {
             printf("Invalid option. Please choose an option from the menu only.\n");
             continue;
